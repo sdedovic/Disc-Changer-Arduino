@@ -1,85 +1,72 @@
+#include <Servo.h>
 #include <EEPROM.h>
 #include <AFMotor.h>
-#include <Servo.h> 
 
-AF_Stepper motor(48, 1);
-Servo myservo;
 
 void move_cw(int x);
 void move_ccw(int x);
 int det_spaces(int x, int y);
-void raise_arm();
-void lower_arm();
+void servoL();
+void servoH();
 
-
+AF_Stepper motor(48, 1);
+Servo servo;
+int current=-1;
+int servoTime=20;
+int sLow=0;
+int sHigh=90;
 
 void setup(){
-  motor.setSpeed(5);
+  servo.attach(9);
+  motor.setSpeed(12);
   Serial.begin(9600);
-  myservo.attach(10);
-  myservo.write(180);
+  current = EEPROM.read(0);
 }
-
-
 
 void loop(){
   int inbyte;
+  int spaces;
+  float steps;
+  float gearRatio = 11.796;
+  
   if(Serial.available() > 0){
 
     inbyte = Serial.read();
 
-    int spaces;
-    int current = EEPROM.read(0);
-    
     spaces = det_spaces(inbyte, current);
-    lower_arm();
+    steps = spaces * gearRatio;
     
-    if(spaces > 0){
-      move_cw(spaces);
+    servoL();
+    
+    if(steps > 0){
+      move_cw((int)(steps+.5));
     }
-    if(spaces < 0){
-      spaces = abs(spaces);
-      move_ccw(spaces);
+    if(steps < 0){
+      steps = abs(steps);
+      move_ccw((int)(steps+.5));
     }
     
-
+    servoH();
+    
     current=inbyte;
     EEPROM.write(0, current);
-    raise_arm();
-    motor.release();
+    
   }
 }
-
 
 
 
 void move_cw(int x){
   motor.step(x, FORWARD, DOUBLE);
+  delay(1000);
+  motor.release();
   }
 
 void move_ccw(int x){
   motor.step(x, BACKWARD, DOUBLE);
+  delay(1000);
+  motor.release();
  }
-
-
-void raise_arm(){
-  int arm;
-   for(arm=10; arm <180 ; arm++){
-    myservo.write(arm);
-    delay(15);
-    return;
-  }
-
-}
-
-void lower_arm(){
-  int arm;
-  for(arm = 180; arm > 10 ; arm--){
-    myservo.write(arm);
-    delay(50);
-    return;
-  }
-}
 
 
 int det_spaces(int x, int y){  // x = desired, y = current, z = spaces
@@ -111,7 +98,23 @@ int det_spaces(int x, int y){  // x = desired, y = current, z = spaces
   }
 }
 
+void servoL(){
+  int move;
+  for(move=sHigh; move>sLow; move--){
+    servo.write(move);
+    delay(servoTime);
+  }
+  delay(2000);
+}
 
 
-
+void servoH(){
+  delay(500);
+  int move;
+  for(move=sLow; move<sHigh; move++){
+    servo.write(move);
+    delay(servoTime);
+  }
+  delay(2000);
+}
 
